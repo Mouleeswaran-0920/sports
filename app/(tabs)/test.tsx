@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Video, ResizeMode } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { Camera, RotateCcw, CircleCheck as CheckCircle, Circle as XCircle, Upload } from 'lucide-react-native';
 import { AIService } from '../../services/aiService';
 import { DataService } from '../../services/dataService';
-import { useUserData } from '../../hooks/useUserData';
-import { PerformanceData } from '../../types';
+import { User, PerformanceData } from '../../types';
 
 export default function TestScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -17,8 +17,21 @@ export default function TestScreen() {
   const [environmentCheck, setEnvironmentCheck] = useState<any>(null);
   const [realtimeFeedback, setRealtimeFeedback] = useState('');
   const [analysisResult, setAnalysisResult] = useState<any>(null);
-  const { user } = useUserData();
+  const [user, setUser] = useState<User | null>(null);
   const cameraRef = useRef<CameraView>(null);
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const triggerHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  };
+
+  const loadUser = async () => {
+    const userData = await DataService.getUser();
+    setUser(userData);
+  };
 
   useEffect(() => {
     if (recording) {
@@ -30,6 +43,7 @@ export default function TestScreen() {
   }, [recording]);
 
   const checkEnvironment = async () => {
+    triggerHaptic();
     try {
       // Mock environment check - in production this would use camera preview
       const mockImageBase64 = 'mock_image_data';
@@ -37,6 +51,7 @@ export default function TestScreen() {
       setEnvironmentCheck(result);
       
       const overallScore = (result.lighting + result.framing + result.background) / 3;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       if (overallScore >= 7) {
         Alert.alert(
           'Environment Check Complete',
@@ -62,16 +77,18 @@ export default function TestScreen() {
 
   const startRecording = async () => {
     if (!cameraRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
 
     try {
       setRecording(true);
       const result = await cameraRef.current.recordAsync({
-        maxDuration: 30,
-        quality: '720p'
+        maxDuration: 30
       });
       
-      setVideoUri(result.uri);
-      setCurrentStep('review');
+      if (result?.uri) {
+        setVideoUri(result.uri);
+        setCurrentStep('review');
+      }
     } catch (error) {
       console.error('Recording failed:', error);
       Alert.alert('Error', 'Failed to record video');
@@ -82,18 +99,21 @@ export default function TestScreen() {
 
   const stopRecording = async () => {
     if (!cameraRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     
     cameraRef.current.stopRecording();
     setRecording(false);
   };
 
   const retakeVideo = () => {
+    triggerHaptic();
     setVideoUri(null);
     setCurrentStep('recording');
   };
 
   const confirmVideo = async () => {
     if (!videoUri || !user) return;
+    triggerHaptic();
 
     setCurrentStep('analysis');
     
@@ -119,6 +139,7 @@ export default function TestScreen() {
       await DataService.savePerformanceData(performanceData);
       setAnalysisResult(result);
       
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       Alert.alert(
         'Analysis Complete!',
         `Your performance score: ${result.score}%\nInjury Risk: ${result.injuryRisk}\n${result.growthPrediction}`,

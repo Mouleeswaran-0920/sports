@@ -1,17 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { Challenge, LeaderboardEntry } from '../../types';
 import { DataService } from '../../services/dataService';
-import { Trophy, Users, Calendar, Medal, Target, Zap } from 'lucide-react-native';
+import { Trophy, Users, Calendar, Medal, Target, Zap, Check } from 'lucide-react-native';
 
 export default function CommunityScreen() {
+  const insets = useSafeAreaInsets();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [selectedTab, setSelectedTab] = useState<'challenges' | 'leaderboard'>('challenges');
+  const [joinedChallengeIds, setJoinedChallengeIds] = useState<string[]>([]);
 
   useEffect(() => {
     loadCommunityData();
   }, []);
+
+  const triggerHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  };
 
   const loadCommunityData = async () => {
     const challengeData = await DataService.getChallenges();
@@ -21,8 +29,16 @@ export default function CommunityScreen() {
   };
 
   const joinChallenge = (challengeId: string) => {
-    console.log('Joining challenge:', challengeId);
-    // In production, this would update the challenge participation
+    if (joinedChallengeIds.includes(challengeId)) {
+      setJoinedChallengeIds(prev => prev.filter(id => id !== challengeId));
+      setChallenges(prev => prev.map(c => c.id === challengeId ? { ...c, participants: c.participants - 1 } : c));
+      triggerHaptic();
+    } else {
+      setJoinedChallengeIds(prev => [...prev, challengeId]);
+      setChallenges(prev => prev.map(c => c.id === challengeId ? { ...c, participants: c.participants + 1 } : c));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Alert.alert('Challenge Joined! 🏆', 'Great effort! Complete tests to log your progress toward this challenge.');
+    }
   };
 
   const getChallengeIcon = (type: string) => {
@@ -51,37 +67,47 @@ export default function CommunityScreen() {
     }
   };
 
-  const renderChallengeItem = ({ item }: { item: Challenge }) => (
-    <View style={styles.challengeCard}>
-      <View style={styles.challengeHeader}>
-        <View style={styles.challengeInfo}>
-          {getChallengeIcon(item.type)}
-          <View style={styles.challengeText}>
-            <Text style={styles.challengeTitle}>{item.name}</Text>
-            <Text style={styles.challengeDescription}>{item.description}</Text>
+  const renderChallengeItem = ({ item }: { item: Challenge }) => {
+    const isJoined = joinedChallengeIds.includes(item.id);
+    return (
+      <View style={styles.challengeCard}>
+        <View style={styles.challengeHeader}>
+          <View style={styles.challengeInfo}>
+            {getChallengeIcon(item.type)}
+            <View style={styles.challengeText}>
+              <Text style={styles.challengeTitle}>{item.name}</Text>
+              <Text style={styles.challengeDescription}>{item.description}</Text>
+            </View>
           </View>
         </View>
-      </View>
-      
-      <View style={styles.challengeStats}>
-        <View style={styles.statItem}>
-          <Users size={16} color="#64748B" />
-          <Text style={styles.statText}>{item.participants} joined</Text>
+        
+        <View style={styles.challengeStats}>
+          <View style={styles.statItem}>
+            <Users size={16} color="#64748B" />
+            <Text style={styles.statText}>{item.participants} joined</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Calendar size={16} color="#64748B" />
+            <Text style={styles.statText}>Ends {new Date(item.endDate).toLocaleDateString()}</Text>
+          </View>
         </View>
-        <View style={styles.statItem}>
-          <Calendar size={16} color="#64748B" />
-          <Text style={styles.statText}>Ends {new Date(item.endDate).toLocaleDateString()}</Text>
-        </View>
+        
+        <TouchableOpacity 
+          style={[styles.joinButton, isJoined && styles.joinedButton]}
+          onPress={() => joinChallenge(item.id)}
+        >
+          {isJoined ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Check size={18} color="white" />
+              <Text style={styles.joinButtonText}>Joined</Text>
+            </View>
+          ) : (
+            <Text style={styles.joinButtonText}>Join Challenge</Text>
+          )}
+        </TouchableOpacity>
       </View>
-      
-      <TouchableOpacity 
-        style={styles.joinButton}
-        onPress={() => joinChallenge(item.id)}
-      >
-        <Text style={styles.joinButtonText}>Join Challenge</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   const renderLeaderboardItem = ({ item }: { item: LeaderboardEntry }) => (
     <View style={styles.leaderboardItem}>
@@ -107,9 +133,11 @@ export default function CommunityScreen() {
     </View>
   );
 
+  const headerPaddingTop = Math.max(insets.top + 16, 50);
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <Text style={styles.title}>Community</Text>
         <View style={styles.tabSelector}>
           <TouchableOpacity
@@ -117,7 +145,10 @@ export default function CommunityScreen() {
               styles.tab,
               selectedTab === 'challenges' && styles.activeTab
             ]}
-            onPress={() => setSelectedTab('challenges')}
+            onPress={() => {
+              triggerHaptic();
+              setSelectedTab('challenges');
+            }}
           >
             <Text style={[
               styles.tabText,
@@ -132,7 +163,10 @@ export default function CommunityScreen() {
               styles.tab,
               selectedTab === 'leaderboard' && styles.activeTab
             ]}
-            onPress={() => setSelectedTab('leaderboard')}
+            onPress={() => {
+              triggerHaptic();
+              setSelectedTab('leaderboard');
+            }}
           >
             <Text style={[
               styles.tabText,
@@ -305,6 +339,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     alignItems: 'center',
+  },
+  joinedButton: {
+    backgroundColor: '#10B981',
   },
   joinButtonText: {
     color: 'white',

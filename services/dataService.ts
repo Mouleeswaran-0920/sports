@@ -31,11 +31,10 @@ export class DataService {
     }
   }
 
-  static async getPerformanceData(userId?: string): Promise<PerformanceData[]> {
+  static async getPerformanceData(): Promise<PerformanceData[]> {
     try {
       const data = await AsyncStorage.getItem('performances');
-      const performances: PerformanceData[] = data ? JSON.parse(data) : [];
-      return userId ? performances.filter(p => p.userId === userId) : performances;
+      return data ? JSON.parse(data) : [];
     } catch (error) {
       console.error('Error getting performance data:', error);
       return [];

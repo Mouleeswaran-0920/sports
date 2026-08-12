@@ -1,18 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
-import { User } from '../../types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import { User, PerformanceData } from '../../types';
 import { DataService } from '../../services/dataService';
-import { useUserData } from '../../hooks/useUserData';
 import { CreditCard as Edit, Save, ChartBar as BarChart, Trophy, Shield, QrCode } from 'lucide-react-native';
 
 export default function ProfileScreen() {
-  const { user, performances, loading, setUser } = useUserData();
+  const insets = useSafeAreaInsets();
+  const [user, setUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState<User | null>(null);
+  const [performances, setPerformances] = useState<PerformanceData[]>([]);
 
-  const startEditing = () => {
-    setEditedUser(user);
-    setIsEditing(true);
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const triggerHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  };
+
+  const loadUserData = async () => {
+    const userData = await DataService.getUser();
+    setUser(userData);
+    setEditedUser(userData);
+    
+    if (userData) {
+      const performanceData = await DataService.getPerformanceData();
+      const userPerformances = performanceData.filter(p => p.userId === userData.id);
+      setPerformances(userPerformances);
+    }
   };
 
   const handleSave = async () => {
@@ -21,10 +39,12 @@ export default function ProfileScreen() {
     await DataService.saveUser(editedUser);
     setUser(editedUser);
     setIsEditing(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     Alert.alert('Success', 'Profile updated successfully!');
   };
 
   const generatePerformanceReport = () => {
+    triggerHaptic();
     if (performances.length === 0) {
       Alert.alert('No Data', 'Complete some fitness tests to generate a performance report.');
       return;
@@ -49,7 +69,7 @@ export default function ProfileScreen() {
 
   const stats = getPerformanceStats();
 
-  if (loading) {
+  if (!user) {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.loadingText}>Loading profile...</Text>
@@ -57,19 +77,11 @@ export default function ProfileScreen() {
     );
   }
 
-  if (!user) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={styles.loadingText}>
-          Create your profile on the Home tab to get started.
-        </Text>
-      </View>
-    );
-  }
+  const headerPaddingTop = Math.max(insets.top + 16, 50);
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <View style={styles.profileInfo}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
@@ -86,7 +98,7 @@ export default function ProfileScreen() {
         
         <TouchableOpacity 
           style={styles.editButton}
-          onPress={isEditing ? handleSave : startEditing}
+          onPress={isEditing ? handleSave : () => setIsEditing(true)}
         >
           {isEditing ? (
             <Save size={20} color="white" />

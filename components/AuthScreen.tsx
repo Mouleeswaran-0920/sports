@@ -46,7 +46,7 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Sports Performance AI</Text>
+        <Text style={styles.title}>Digisport</Text>
         <Text style={styles.subtitle}>Unlock Your Athletic Potential</Text>
       </View>
 

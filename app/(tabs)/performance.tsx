@@ -1,19 +1,37 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
-import { SportSuitability } from '../../types';
-import { useUserData } from '../../hooks/useUserData';
+import { PerformanceData, SportSuitability } from '../../types';
+import { DataService } from '../../services/dataService';
 import { TrendingUp, Target, Shield, Share2 } from 'lucide-react-native';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function PerformanceScreen() {
-  const { performances } = useUserData();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [performances, setPerformances] = useState<PerformanceData[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<'score' | 'posture' | 'technique'>('score');
 
+  useEffect(() => {
+    loadPerformanceData();
+  }, []);
+
+  const triggerHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  };
+
+  const loadPerformanceData = async () => {
+    const data = await DataService.getPerformanceData();
+    setPerformances(data.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+  };
+
   const generateQRCode = () => {
-    // In production, this would generate an actual QR code with performance data
-    console.log('Generating QR code for performance report...');
+    triggerHaptic();
+    Alert.alert('Share Performance Report', 'Performance card generated! You can share your data with coaches & SAI scouts.', [{ text: 'OK' }]);
   };
 
   const getChartData = () => {
@@ -94,9 +112,11 @@ export default function PerformanceScreen() {
     }
   };
 
+  const headerPaddingTop = Math.max(insets.top + 16, 50);
+
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <Text style={styles.title}>Performance Analytics</Text>
         <TouchableOpacity style={styles.shareButton} onPress={generateQRCode}>
           <Share2 size={20} color="white" />
@@ -234,6 +254,15 @@ export default function PerformanceScreen() {
           <Text style={styles.emptyDescription}>
             Complete your first fitness test to see detailed analytics and insights.
           </Text>
+          <TouchableOpacity 
+            style={styles.emptyCtaButton}
+            onPress={() => {
+              triggerHaptic();
+              router.push('/test');
+            }}
+          >
+            <Text style={styles.emptyCtaText}>Start Fitness Test</Text>
+          </TouchableOpacity>
         </View>
       )}
     </ScrollView>
@@ -413,5 +442,22 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 20,
+  },
+  emptyCtaButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  emptyCtaText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

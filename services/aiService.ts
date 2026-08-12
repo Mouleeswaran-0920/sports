@@ -1,19 +1,12 @@
-// Configured via .env (git-ignored). See .env.example.
-// NOTE: EXPO_PUBLIC_* values are inlined into the app bundle at build time,
-// so this keeps the key out of the repo but NOT out of a shipped build.
-// Anything genuinely secret has to sit behind a server-side proxy.
-const AI_API_KEY = process.env.EXPO_PUBLIC_AI_API_KEY ?? '';
-const AI_API_URL = process.env.EXPO_PUBLIC_AI_API_URL ?? 'https://api.openai.com/v1';
+const AI_API_KEY = process.env.EXPO_PUBLIC_AI_API_KEY || '';
+const AI_API_URL = process.env.EXPO_PUBLIC_AI_API_URL || 'https://api.openai.com/v1';
 
 export class AIService {
   static async analyzeEnvironment(imageBase64: string) {
     try {
       if (!AI_API_KEY) {
-        // Falls through to the mock result below with a clear reason,
-        // rather than an opaque 401 from the API.
         throw new Error('EXPO_PUBLIC_AI_API_KEY is not set');
       }
-
       const response = await fetch(`${AI_API_URL}/chat/completions`, {
         method: 'POST',
         headers: {

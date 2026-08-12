@@ -1,17 +1,50 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import { User, PerformanceData } from '../../types';
 import { DataService } from '../../services/dataService';
-import { useUserData } from '../../hooks/useUserData';
 import AuthScreen from '../../components/AuthScreen';
 import { Play, TrendingUp, Shield, QrCode } from 'lucide-react-native';
 
 export default function HomeScreen() {
-  const { user, performances, loading, setUser } = useUserData();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [recentPerformances, setRecentPerformances] = useState<PerformanceData[]>([]);
 
-  // Hook returns oldest-first; show the three most recent, newest first.
-  const recentPerformances = performances.slice(-3).reverse();
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const triggerHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  };
+
+  const loadUserData = async () => {
+    try {
+      const userData = await DataService.getUser();
+      setUser(userData);
+      
+      if (userData) {
+        const performances = await DataService.getPerformanceData();
+        const userPerformances = performances
+          .filter(p => p.userId === userData.id)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 3);
+        setRecentPerformances(userPerformances);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSync = async () => {
+    triggerHaptic();
     Alert.alert(
       'Sync Data',
       'This will upload your performance data to Sports Authority of India. Continue?',
@@ -21,6 +54,7 @@ export default function HomeScreen() {
           text: 'Sync', 
           onPress: async () => {
             await DataService.syncData();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
             Alert.alert('Success', 'Data synced successfully!');
           }
         }
@@ -40,9 +74,11 @@ export default function HomeScreen() {
     return <AuthScreen onAuthenticated={setUser} />;
   }
 
+  const headerPaddingTop = Math.max(insets.top + 16, 50);
+
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <Text style={styles.welcomeText}>Welcome back,</Text>
         <Text style={styles.nameText}>{user.name}</Text>
         <TouchableOpacity style={styles.syncButton} onPress={handleSync}>
@@ -53,25 +89,49 @@ export default function HomeScreen() {
       <View style={styles.quickActions}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionGrid}>
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => {
+              triggerHaptic();
+              router.push('/test');
+            }}
+          >
             <Play size={32} color="#3B82F6" />
             <Text style={styles.actionTitle}>Start Test</Text>
             <Text style={styles.actionSubtitle}>Begin fitness assessment</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => {
+              triggerHaptic();
+              router.push('/performance');
+            }}
+          >
             <TrendingUp size={32} color="#10B981" />
             <Text style={styles.actionTitle}>View Progress</Text>
             <Text style={styles.actionSubtitle}>Track improvements</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => {
+              triggerHaptic();
+              router.push('/performance');
+            }}
+          >
             <Shield size={32} color="#F59E0B" />
             <Text style={styles.actionTitle}>Injury Check</Text>
             <Text style={styles.actionSubtitle}>Risk assessment</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => {
+              triggerHaptic();
+              router.push('/profile');
+            }}
+          >
             <QrCode size={32} color="#8B5CF6" />
             <Text style={styles.actionTitle}>Share Report</Text>
             <Text style={styles.actionSubtitle}>Generate QR code</Text>
@@ -83,7 +143,14 @@ export default function HomeScreen() {
         <View style={styles.recentSection}>
           <Text style={styles.sectionTitle}>Recent Performance</Text>
           {recentPerformances.map((performance) => (
-            <View key={performance.id} style={styles.performanceCard}>
+            <TouchableOpacity 
+              key={performance.id} 
+              style={styles.performanceCard}
+              onPress={() => {
+                triggerHaptic();
+                router.push('/performance');
+              }}
+            >
               <View style={styles.performanceHeader}>
                 <Text style={styles.performanceTitle}>{performance.testType}</Text>
                 <Text style={styles.performanceScore}>{performance.score}%</Text>
@@ -96,7 +163,7 @@ export default function HomeScreen() {
                   {new Date(performance.createdAt).toLocaleDateString()}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
