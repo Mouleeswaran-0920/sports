@@ -1,29 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
-import { User, PerformanceData } from '../../types';
+import { User } from '../../types';
 import { DataService } from '../../services/dataService';
+import { useUserData } from '../../hooks/useUserData';
 import { CreditCard as Edit, Save, ChartBar as BarChart, Trophy, Shield, QrCode } from 'lucide-react-native';
 
 export default function ProfileScreen() {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, performances, loading, setUser } = useUserData();
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState<User | null>(null);
-  const [performances, setPerformances] = useState<PerformanceData[]>([]);
 
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
-    const userData = await DataService.getUser();
-    setUser(userData);
-    setEditedUser(userData);
-    
-    if (userData) {
-      const performanceData = await DataService.getPerformanceData();
-      const userPerformances = performanceData.filter(p => p.userId === userData.id);
-      setPerformances(userPerformances);
-    }
+  const startEditing = () => {
+    setEditedUser(user);
+    setIsEditing(true);
   };
 
   const handleSave = async () => {
@@ -60,10 +49,20 @@ export default function ProfileScreen() {
 
   const stats = getPerformanceStats();
 
-  if (!user) {
+  if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.loadingText}>
+          Create your profile on the Home tab to get started.
+        </Text>
       </View>
     );
   }
@@ -87,7 +86,7 @@ export default function ProfileScreen() {
         
         <TouchableOpacity 
           style={styles.editButton}
-          onPress={isEditing ? handleSave : () => setIsEditing(true)}
+          onPress={isEditing ? handleSave : startEditing}
         >
           {isEditing ? (
             <Save size={20} color="white" />

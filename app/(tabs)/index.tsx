@@ -1,38 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { User, PerformanceData } from '../../types';
 import { DataService } from '../../services/dataService';
+import { useUserData } from '../../hooks/useUserData';
 import AuthScreen from '../../components/AuthScreen';
 import { Play, TrendingUp, Shield, QrCode } from 'lucide-react-native';
 
 export default function HomeScreen() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [recentPerformances, setRecentPerformances] = useState<PerformanceData[]>([]);
+  const { user, performances, loading, setUser } = useUserData();
 
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
-    try {
-      const userData = await DataService.getUser();
-      setUser(userData);
-      
-      if (userData) {
-        const performances = await DataService.getPerformanceData();
-        const userPerformances = performances
-          .filter(p => p.userId === userData.id)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 3);
-        setRecentPerformances(userPerformances);
-      }
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Hook returns oldest-first; show the three most recent, newest first.
+  const recentPerformances = performances.slice(-3).reverse();
 
   const handleSync = async () => {
     Alert.alert(

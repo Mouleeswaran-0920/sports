@@ -5,7 +5,8 @@ import { Video, ResizeMode } from 'expo-av';
 import { Camera, RotateCcw, CircleCheck as CheckCircle, Circle as XCircle, Upload } from 'lucide-react-native';
 import { AIService } from '../../services/aiService';
 import { DataService } from '../../services/dataService';
-import { User, PerformanceData } from '../../types';
+import { useUserData } from '../../hooks/useUserData';
+import { PerformanceData } from '../../types';
 
 export default function TestScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -16,17 +17,8 @@ export default function TestScreen() {
   const [environmentCheck, setEnvironmentCheck] = useState<any>(null);
   const [realtimeFeedback, setRealtimeFeedback] = useState('');
   const [analysisResult, setAnalysisResult] = useState<any>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useUserData();
   const cameraRef = useRef<CameraView>(null);
-
-  useEffect(() => {
-    loadUser();
-  }, []);
-
-  const loadUser = async () => {
-    const userData = await DataService.getUser();
-    setUser(userData);
-  };
 
   useEffect(() => {
     if (recording) {
