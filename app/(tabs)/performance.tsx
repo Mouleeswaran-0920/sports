@@ -1,24 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
-import { PerformanceData, SportSuitability } from '../../types';
-import { DataService } from '../../services/dataService';
+import { SportSuitability } from '../../types';
+import { useUserData } from '../../hooks/useUserData';
 import { TrendingUp, Target, Shield, Share2 } from 'lucide-react-native';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function PerformanceScreen() {
-  const [performances, setPerformances] = useState<PerformanceData[]>([]);
+  const { performances } = useUserData();
   const [selectedMetric, setSelectedMetric] = useState<'score' | 'posture' | 'technique'>('score');
-
-  useEffect(() => {
-    loadPerformanceData();
-  }, []);
-
-  const loadPerformanceData = async () => {
-    const data = await DataService.getPerformanceData();
-    setPerformances(data.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
-  };
 
   const generateQRCode = () => {
     // In production, this would generate an actual QR code with performance data
